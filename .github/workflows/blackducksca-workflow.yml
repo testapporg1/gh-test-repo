@@ -40,23 +40,32 @@ jobs:
         uses: actions/checkout@v4
       - name: Download & Setup Bridge CLI
         shell: bash
-        run: |-
+        run: |
           BRIDGE_CLI_DOWNLOAD_URL="https://repo.blackduck.com/bds-integrations-release/com/blackduck/integration/bridge/binaries/bridge-cli-bundle/latest"
+      
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # pwsh -Command "
-            #   Invoke-WebRequest '$BRIDGE_CLI_DOWNLOAD_URL/bridge-cli-bundle-win64.zip' -OutFile 'bridge.zip';
-            #   Expand-Archive 'bridge.zip' \$env:RUNNER_TEMP -Force;
-            #   \$exe = (Get-ChildItem -Recurse -File \$env:RUNNER_TEMP -Filter bridge-cli.exe | Select-Object -First 1).FullName;
-            #   \"BRIDGE_CLI_INSTALL_DIR=\$exe\" | Out-File -Append -FilePath \$env:GITHUB_ENV
-            # "
+            # Convert Windows path to Unix style for bash
+            RUNNER_TEMP_UNIX=$(echo "$RUNNER_TEMP" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/\L\1|')
+            
+            # Download and unzip using curl and unzip (available in GitHub Windows runners)
             curl -sSL -o bridge.zip "$BRIDGE_CLI_DOWNLOAD_URL/bridge-cli-bundle-win64.zip"
-            unzip -qo bridge.zip -d "$RUNNER_TEMP"
-            echo "BRIDGE_CLI_INSTALL_DIR=$(find $RUNNER_TEMP -type f -name bridge-cli | head -n1)" >> "$GITHUB_ENV"
+            unzip -qo bridge.zip -d "$RUNNER_TEMP_UNIX"
+            
+            # Find the executable
+            BRIDGE_CLI_PATH=$(find "$RUNNER_TEMP_UNIX" -type f -name bridge-cli.exe | head -n1)
+            echo "BRIDGE_CLI_INSTALL_DIR=$BRIDGE_CLI_PATH" >> "$GITHUB_ENV"
+      
           else
+            # Determine OS for macOS/Linux
             OS=$([[ "$RUNNER_OS" == "macOS" ]] && ([[ $(uname -m) =~ arm ]] && echo macos_arm || echo macosx) || ([[ $(uname -m) =~ arm ]] && echo linux_arm || echo linux64))
+            
+            # Download and unzip
             curl -sSL -o bridge.zip "$BRIDGE_CLI_DOWNLOAD_URL/bridge-cli-bundle-$OS.zip"
             unzip -qo bridge.zip -d "$RUNNER_TEMP"
-            echo "BRIDGE_CLI_INSTALL_DIR=$(find $RUNNER_TEMP -type f -name bridge-cli | head -n1)" >> "$GITHUB_ENV"
+            
+            # Find the executable
+            BRIDGE_CLI_PATH=$(find "$RUNNER_TEMP" -type f -name bridge-cli | head -n1)
+            echo "BRIDGE_CLI_INSTALL_DIR=$BRIDGE_CLI_PATH" >> "$GITHUB_ENV"
           fi
       - name: Blackducksca Full Scan
         if: ${{ github.event_name != 'pull_request' }}
