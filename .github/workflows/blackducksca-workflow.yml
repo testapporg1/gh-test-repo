@@ -42,12 +42,38 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          $BRIDGE_CLI_DOWNLOAD_URL = "https://repo.blackduck.com/bds-integrations-release/com/blackduck/integration/bridge/binaries/bridge-cli-bundle/latest"
-          $zip = Join-Path $env:TEMP "bridge.zip"
-          Invoke-WebRequest "$BRIDGE_CLI_DOWNLOAD_URL/bridge-cli-bundle-win64.zip" -OutFile $zip
-          Expand-Archive $zip -DestinationPath $env:TEMP -Force
-          $exe = Get-ChildItem -Recurse -File $env:TEMP -Filter bridge-cli.exe | Select-Object -First 1
+          Write-Host "Starting Bridge CLI setup for Windows..."
+      
+          # Define download URL and temp paths
+          $bridgeUrl = "https://repo.blackduck.com/bds-integrations-release/com/blackduck/integration/bridge/binaries/bridge-cli-bundle/latest/bridge-cli-bundle-win64.zip"
+          $zipPath = Join-Path $env:TEMP "bridge.zip"
+          $extractPath = Join-Path $env:TEMP "bridge_extracted"
+      
+          # Download the ZIP file
+          Write-Host "Downloading Bridge CLI from $bridgeUrl"
+          Invoke-WebRequest -Uri $bridgeUrl -OutFile $zipPath
+      
+          # Extract the ZIP file
+          Write-Host "Extracting Bridge CLI to $extractPath"
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+      
+          # Locate the bridge-cli.exe
+          $exe = Get-ChildItem -Path $extractPath -Recurse -Filter "bridge-cli.exe" | Select-Object -First 1
+      
+          if (-not $exe) {
+            Write-Error "Bridge CLI executable not found after extraction."
+            exit 1
+          }
+      
+          # Unblock the executable (optional but recommended)
+          Unblock-File -Path $exe.FullName
+      
+          # Set environment variable for later steps
+          Write-Host "Bridge CLI executable found at: $($exe.FullName)"
           "BRIDGE_CLI_INSTALL_DIR=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+      
+          Write-Host "Bridge CLI setup completed successfully."
+
 
       - name: Download & Setup Bridge CLI on macOS/Linux
         if: runner.os != 'Windows'
