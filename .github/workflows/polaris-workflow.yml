@@ -1,0 +1,40 @@
+# Quickstart: Black Duck Security Scan Action with polaris:
+#     https://blackduck-dev.zoominsoftware.io/bundle/bridge/page/documentation/t_github-polaris-quickstart.html
+name: Polaris Security Scan
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - stage
+      - release
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+      - stage
+      - release
+  workflow_dispatch: {}
+# GitHub token permissions for post-scan actions. Required for built-in GITHUB_TOKEN; if using a PAT with equivalent scopes, permissions block can be commented out.
+permissions:
+  contents: write               # Required to push changes or create fix branches
+  security-events: write        # Required to upload SARIF results to GitHub Security
+jobs:
+  polaris:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+      - name: Polaris Security Scan
+        id: polaris-scan
+        uses: blackduck-inc/black-duck-security-scan@v2
+        with:
+          polaris_server_url: ${{ vars.POLARIS_URL }}
+          polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+          polaris_assessment_types: SCA
+          include_diagnostics: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          polaris_reports_sarif_create: true
+          polaris_upload_sarif_report: true
