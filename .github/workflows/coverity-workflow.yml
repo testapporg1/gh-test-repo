@@ -23,7 +23,7 @@ permissions:
   pull-requests: write          # Required to add comments or create fix pull requests
 jobs:
   coverity:
-    runs-on: self-hosted
+    runs-on: windows-latest
     env:
       BRIDGE_COVERITY_CONNECT_URL: ${{ vars.COVERITY_URL }}
       BRIDGE_COVERITY_CONNECT_USER_NAME: ${{ secrets.COVERITY_USER }}
@@ -33,8 +33,11 @@ jobs:
       BRIDGE_GITHUB_REPOSITORY_OWNER_NAME: ${{ github.repository_owner }}
       BRIDGE_GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}
       BRIDGE_GITHUB_REPOSITORY_BRANCH_NAME: ${{ github.ref_name }}
-      BRIDGE_COVERITY_LOCAL: "false"
+      BRIDGE_COVERITY_LOCAL: "true"
       BRIDGE_GITHUB_USER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      ### SCANNING: Optional fields
+      # BRIDGE_COVERITY_WAIT_FOR_SCAN: true
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -59,9 +62,20 @@ jobs:
       - name: Coverity Full Scan
         if: ${{ github.event_name != 'pull_request' }}
         run: ${{ env.BRIDGE_CLI_INSTALL_DIR }} --stage connect --verbose --diagnostics
+        shell: powershell
       - name: Coverity PR Scan
         if: ${{ github.event_name == 'pull_request' }}
         run: |-
-          ${{ env.BRIDGE_CLI_INSTALL_DIR }} --stage connect --verbose  --diagnostics  \
-             coverity.prComment.enable=true  \
+          ${{ env.BRIDGE_CLI_INSTALL_DIR }} --stage connect --verbose  --diagnostics  `
+             coverity.prComment.enable=true  `
              github.repository.pull.number=${{ github.event.number }}
+        shell: powershell
+
+
+      ### Uncomment below configuration to save logs
+      # - name: Save Logs
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: bridge-logs
+      #     path: ${{ github.workspace }}/.bridge
